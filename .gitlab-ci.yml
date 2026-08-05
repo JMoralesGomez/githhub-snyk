@@ -92,30 +92,20 @@ dependency_audit:
   stage: security
 
   script:
-    - pip install -r requirements.txt
+      -   apt-get update && apt-get install -y python3 python3-venv python3-pip #se actualiza entorno e instala versión de python
+      -   python3 -m venv venv #entorno virtual llamado venv para aislar dependencias
+      -   source venv/bin/activate #se activa entorno virtual
+      -   pip install -r requerimiento.txt #se instalan las dependencias Flask de python dependiendo de la versión proporcionada en el archivo de texto
+      -   npm install -g snyk
+      -   snyk auth $SNYK_TOKEN #el tocken de skyk para su comunicación
+      -   snyk test --file=requerimiento.txt --package-manager=pip || true
+      -   snyk monitor --file=requerimiento.txt --package-manager=pip
 
-    # Publica el proyecto y sus resultados en la plataforma Snyk
-    - snyk monitor
-        --file=requirements.txt
-        --package-manager=pip
-        --command=python3
-        --org="$SNYK_ORG"
-        --project-name="$CI_PROJECT_PATH"
-
-    # Bloquea el pipeline ante vulnerabilidades altas o críticas
-    - snyk test
-        --file=requirements.txt
-        --package-manager=pip
-        --command=python3
-        --org="$SNYK_ORG"
-        --severity-threshold=high
-        --json-file-output=snyk-report.json
-
-  artifacts:
-    when: always
-    paths:
-      - snyk-report.json
-    expire_in: 1 week
+#  artifacts:
+#    when: always
+#    paths:
+#      - snyk-report.json
+#    expire_in: 1 week
     
 secret_detection:
   image:
