@@ -85,16 +85,24 @@ sast_bandit:
     expire_in: 1 week
 
 dependency_audit:
-  extends: .python_job
-  stage: security
-  script:
-    - pip-audit --progress-spinner=off --format=json --output=pip-audit-report.json
-  artifacts:
-    when: always
-    paths:
-      - pip-audit-report.json
-    expire_in: 1 week
-
+#  extends: .python_job
+#  stage: security
+#  script:
+#    - pip-audit --progress-spinner=off --format=json --output=pip-audit-report.json
+#  artifacts:
+#    when: always
+#    paths:
+#      - pip-audit-report.json
+#    expire_in: 1 week
+    script:
+        -   apt-get update && apt-get install -y python3 python3-venv python3-pip #se actualiza entorno e instala versión de python
+        -   python3 -m venv venv #entorno virtual llamado venv para aislar dependencias
+        -   source venv/bin/activate #se activa entorno virtual
+        -   pip install -r requerimiento.txt #se instalan las dependencias Flask de python dependiendo de la versión proporcionada en el archivo de texto
+        -   npm install -g snyk
+        -   snyk auth $SNYK_TOKEN #el tocken de skyk para su comunicación
+        -   snyk test --file=requerimiento.txt --package-manager=pip || true
+        -   snyk monitor --file=requerimiento.txt --package-manager=pip
 secret_detection:
   image:
     name: zricethezav/gitleaks:v8.28.0
