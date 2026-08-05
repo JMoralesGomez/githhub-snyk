@@ -152,20 +152,20 @@ python_package:
       - dist/
     expire_in: 1 week
 
-container_build:
-  image: docker:28.3.3-cli
-  stage: build
-  services:
-    - name: docker:28.3.3-dind
-      alias: docker
-  before_script:
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
-  script:
-    - docker build --pull --tag "$IMAGE_SHA" .
-    - docker push "$IMAGE_SHA"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_TAG'
+#container_build:
+#  image: docker:28.3.3-cli
+#  stage: build
+#  services:
+#    - name: docker:28.3.3-dind
+#      alias: docker
+#  before_script:
+#    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+#  script:
+#    - docker build --pull --tag "$IMAGE_SHA" .
+#    - docker push "$IMAGE_SHA"
+#  rules:
+#    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#    - if: '$CI_COMMIT_TAG'
 
 container_vulnerability_scan:
   image:
