@@ -23,4 +23,3 @@ def test_sum_rejects_invalid_input() -> None:
     response = client.get("/api/v1/sum", params={"a": "invalid", "b": 3})
 
     assert response.status_code == 422
-
