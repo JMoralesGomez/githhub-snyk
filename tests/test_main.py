@@ -4,6 +4,9 @@ from mini_api.main import app
 
 client = TestClient(app)
 
+# EJEMPLO INSEGURO: valores completamente ficticios.
+DATABASE_USERNAME = "usuario_prueba"
+DATABASE_PASSWORD = "FakePassword-OnlyForGitleaks-987654"
 
 def test_health() -> None:
     response = client.get("/health")
