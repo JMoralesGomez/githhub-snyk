@@ -13,4 +13,16 @@ build/
 .env
 .idea/
 .vscode/
-
+.git
+.gitlab-ci.yml
+.venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+htmlcov
+coverage.xml
+dist
+tests
+*.md
+!README.md
