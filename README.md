@@ -1,4 +1,4 @@
-# Mini API Python con GitLab DevSecOps
+# Mini API Python con GitLab DevSecOps ...
 
 Proyecto de referencia con FastAPI, pruebas, empaquetado, contenedor y un pipeline de seguridad de extremo a extremo.
 
