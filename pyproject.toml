@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "mini-api-devsecops"
 version = "0.1.0"
 description = "Mini API Python para demostrar un pipeline GitLab DevSecOps"
-readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.116,<1",
