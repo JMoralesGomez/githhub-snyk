@@ -24,3 +24,5 @@ htmlcov
 coverage.xml
 dist
 tests
+/README.md
+*.md
