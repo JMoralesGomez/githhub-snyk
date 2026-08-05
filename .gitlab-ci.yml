@@ -85,14 +85,36 @@ sast_bandit:
     expire_in: 1 week
 
 dependency_audit:
-  extends: .python_job
+  image:
+    name: snyk/snyk:python
+    entrypoint: [""]
+
   stage: security
+
   script:
-    - pip-audit --progress-spinner=off --format=json --output=pip-audit-report.json
+    - pip install -r requirements.txt
+
+    # Publica el proyecto y sus resultados en la plataforma Snyk
+    - snyk monitor
+        --file=requirements.txt
+        --package-manager=pip
+        --command=python3
+        --org="$SNYK_ORG"
+        --project-name="$CI_PROJECT_PATH"
+
+    # Bloquea el pipeline ante vulnerabilidades altas o críticas
+    - snyk test
+        --file=requirements.txt
+        --package-manager=pip
+        --command=python3
+        --org="$SNYK_ORG"
+        --severity-threshold=high
+        --json-file-output=snyk-report.json
+
   artifacts:
     when: always
     paths:
-      - pip-audit-report.json
+      - snyk-report.json
     expire_in: 1 week
     
 secret_detection:
