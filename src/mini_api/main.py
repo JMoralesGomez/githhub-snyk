@@ -13,4 +13,3 @@ def health() -> dict[str, str]:
 def add(a: int, b: int) -> dict[str, int]:
     """Add two integers."""
     return {"result": a + b}
-
