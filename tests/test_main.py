@@ -3,6 +3,8 @@ from fastapi.testclient import TestClient
 from mini_api.main import app
 
 client = TestClient(app)
+user = "loro"
+pass = "123456"
 
 
 def test_health() -> None:
