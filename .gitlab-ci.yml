@@ -1,0 +1,226 @@
+stages:
+  - validate
+  - test
+  - security
+  - build
+  - container_scan
+  - publish
+  - deploy
+  - verify
+
+default:
+  interruptible: true
+  retry:
+    max: 1
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUNBUFFERED: "1"
+  IMAGE_SHA: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+  IMAGE_RELEASE: "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_TLS_CERTDIR: ""
+
+.python_job:
+  image: python:3.12-slim
+  cache:
+    key:
+      files:
+        - pyproject.toml
+    paths:
+      - .cache/pip
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -e ".[dev]"
+
+lint:
+  extends: .python_job
+  stage: validate
+  script:
+    - ruff check .
+    - ruff format --check .
+
+types:
+  extends: .python_job
+  stage: validate
+  script:
+    - mypy src
+
+unit_tests:
+  extends: .python_job
+  stage: test
+  script:
+    - pytest --junitxml=report.xml
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - htmlcov/
+    expire_in: 1 week
+
+sast_bandit:
+  extends: .python_job
+  stage: security
+  script:
+    - bandit -r src -f json -o bandit-report.json
+  artifacts:
+    when: always
+    paths:
+      - bandit-report.json
+    expire_in: 1 week
+
+dependency_audit:
+  extends: .python_job
+  stage: security
+  script:
+    - pip-audit --progress-spinner=off --format=json --output=pip-audit-report.json
+  artifacts:
+    when: always
+    paths:
+      - pip-audit-report.json
+    expire_in: 1 week
+
+secret_detection:
+  image:
+    name: zricethezav/gitleaks:v8.28.0
+    entrypoint: [""]
+  stage: security
+  script:
+    - gitleaks detect --source . --no-banner --redact --report-format json --report-path gitleaks-report.json
+  artifacts:
+    when: always
+    paths:
+      - gitleaks-report.json
+    expire_in: 1 week
+
+filesystem_scan:
+  image:
+    name: aquasec/trivy:0.65.0
+    entrypoint: [""]
+  stage: security
+  script:
+    - trivy fs --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --no-progress .
+
+sbom:
+  image:
+    name: aquasec/trivy:0.65.0
+    entrypoint: [""]
+  stage: security
+  script:
+    - trivy fs --format cyclonedx --output gl-sbom.cdx.json .
+  artifacts:
+    reports:
+      cyclonedx: gl-sbom.cdx.json
+    paths:
+      - gl-sbom.cdx.json
+    expire_in: 1 week
+
+python_package:
+  extends: .python_job
+  stage: build
+  script:
+    - python -m build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+
+container_build:
+  image: docker:28.3.3-cli
+  stage: build
+  services:
+    - name: docker:28.3.3-dind
+      alias: docker
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - docker build --pull --tag "$IMAGE_SHA" .
+    - docker push "$IMAGE_SHA"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+
+container_vulnerability_scan:
+  image:
+    name: aquasec/trivy:0.65.0
+    entrypoint: [""]
+  stage: container_scan
+  needs:
+    - container_build
+  script:
+    - trivy image --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --no-progress "$IMAGE_SHA"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+
+publish_release:
+  image: docker:28.3.3-cli
+  stage: publish
+  services:
+    - name: docker:28.3.3-dind
+      alias: docker
+  needs:
+    - container_build
+    - container_vulnerability_scan
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - docker pull "$IMAGE_SHA"
+    - docker tag "$IMAGE_SHA" "$IMAGE_RELEASE"
+    - docker push "$IMAGE_RELEASE"
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+
+deploy_production:
+  image: alpine:3.22
+  stage: deploy
+  needs:
+    - publish_release
+  environment:
+    name: production
+    url: "$DEPLOY_URL"
+  before_script:
+    - apk add --no-cache openssh-client
+    - install -m 700 -d ~/.ssh
+    - echo "$DEPLOY_SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - chmod 600 ~/.ssh/known_hosts
+  script:
+    - >-
+      ssh "$DEPLOY_USER@$DEPLOY_HOST"
+      "docker login -u '$CI_REGISTRY_USER' -p '$CI_REGISTRY_PASSWORD' '$CI_REGISTRY' &&
+      docker pull '$IMAGE_RELEASE' &&
+      docker rm -f mini-api 2>/dev/null || true &&
+      docker run -d --name mini-api --restart unless-stopped -p 8000:8000 '$IMAGE_RELEASE'"
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+      when: manual
+    - when: never
+  allow_failure: false
+
+verify_production:
+  image: curlimages/curl:8.15.0
+  stage: verify
+  needs:
+    - deploy_production
+  script:
+    - curl --fail --silent --show-error --retry 5 --retry-delay 5 "$DEPLOY_URL/health"
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+    - when: never
