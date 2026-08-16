@@ -140,24 +140,6 @@ sbom:
       - gl-sbom.cdx.json
     expire_in: 1 week
 
-build-and-test:
-  stage: build
-  image: python:3.7
-  script:
-    - python -m pip install --upgrade pip
-    - pip install pygame==1.9.*
-    #Validate pygame + import main.py
-    - |
-      python - <<'py'
-      import pygame
-      print("Pygame, "__version__", pygame.version.ver))
-      import main
-      print("main.py importado correctamente")
-      PY
-  only:
-    - main
-    - merge_requests
-
 python_package:
   extends: .python_job
   stage: build
