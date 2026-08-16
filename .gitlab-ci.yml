@@ -3,7 +3,6 @@ stages:
   - test
   - security
   - build
-  - sonar
   - container_scan
   - publish
   - deploy
@@ -31,10 +30,7 @@ variables:
   IMAGE_RELEASE: "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"
   DOCKER_HOST: "tcp://docker:2375"
   DOCKER_TLS_CERTDIR: ""
-  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  #Cache Sonar data
-  GIT_DEPTH: "0" #Needded for Sonar history
-  SDL_VIDEODRIVER: "dummy" #For pygame hedless import
-
+  
 .python_job:
   image: python:3.12-slim
   cache:
@@ -161,26 +157,6 @@ build-and-test:
   only:
     - main
     - merge_requests
-
-sonarcloud-check:
-  stage: sonar
-  image:
-    name: sonarsource/sonar-scanner-cli:latest
-    entrypoint: [""]
-  script:
-    - |
-      sonar-scanner \
-      -Dsonar.organization=trainmefordevsecops \
-      -Dsonar.projectKey=my-python-project \
-      -Dsonar.sources=. \
-      -Dsonar.host.url=httpS://sonarcloud.io \
-      -Dsonar.login=$SONAR_TOKEN
-  allow_failure: true
-  only:
-    - main
-    - merge_requests
-
-
 
 python_package:
   extends: .python_job
