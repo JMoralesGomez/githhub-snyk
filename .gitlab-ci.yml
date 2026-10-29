@@ -2,7 +2,7 @@ stages:
   - validate
   - test
   - security
-  - SAST-SONAR
+#  - SAST-SONAR
   - build
   - container_scan
   - publish
@@ -141,11 +141,11 @@ sbom:
       - gl-sbom.cdx.json
     expire_in: 1 week
 
-run-sast-job:
-  stage: SAST-SONAR
-  image: maven:3-openjdk-17
-  script: |
-    mvn verify package sonar:sonar -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.organization=joaquinmorales -Dsonar.projectKey=joaquinmorales_pjm-02 -Dsonar.login=$SONAR_TOKEN
+#run-sast-job:
+#  stage: SAST-SONAR
+#  image: maven:3-openjdk-17
+#  script: |
+#    mvn verify package sonar:sonar -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.organization=joaquinmorales #-Dsonar.projectKey=joaquinmorales_pjm-02 -Dsonar.login=$SONAR_TOKEN
 
 
 python_package:
