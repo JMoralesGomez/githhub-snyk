@@ -4,7 +4,7 @@ sca-job:
   stage: test
   image: python:alpine
   script:
-      -   apt-get update && apt-get install -y python3 python3-venv python3-pip #se actualiza entorno e instala versión de python b
+      -   apt-get update && apt-get install -y python3 python3-venv python3-pip #Aquí se actualiza entorno e instala versión de python b
       -   python3 -m venv venv #entorno virtual llamado venv para aislar dependencias
       -   source venv/bin/activate #se activa entorno virtual
       -   pip install -r requerimiento.txt #se instalan las dependencias Flask de python dependiendo de la versión proporcionada en el archivo de texto
