@@ -1,14 +1,74 @@
+#stages:
+#  - test
+#sca-job:
+#  stage: test
+#  image: python:alpine
+#  script:
+#      -   apt-get update && apt-get install -y python3 python3-venv python3-pip #Aquí se actualiza entorno e instala versión de python b
+#      -   python3 -m venv venv #entorno virtual llamado venv para aislar dependencias
+#      -   source venv/bin/activate #se activa entorno virtual
+#      -   pip install -r requerimiento.txt #se instalan las dependencias Flask de python dependiendo de la versión proporcionada en el archivo de texto
+#      -   npm install -g snyk
+#      -   snyk auth $SNYK_TOKEN #el tocken de skyk para su comunicación
+#      -   snyk test --file=requerimiento.txt --package-manager=pip || true
+#      -   snyk monitor --file=requerimiento.txt --package-manager=pip
+
+#==========================================================
+# Pipeline DevSecOps
+# Ejemplo educativo para una aplicación Python
+
 stages:
+  - secret_scan
+  - build
+  - security
   - test
-sca-job:
-  stage: test
-  image: python:alpine
+  - container_scan
+  - deploy
+
+# 1. Detección de secretos
+gitleaks:
+  stage: secret_scan
   script:
-      -   apt-get update && apt-get install -y python3 python3-venv python3-pip #Aquí se actualiza entorno e instala versión de python b
-      -   python3 -m venv venv #entorno virtual llamado venv para aislar dependencias
-      -   source venv/bin/activate #se activa entorno virtual
-      -   pip install -r requerimiento.txt #se instalan las dependencias Flask de python dependiendo de la versión proporcionada en el archivo de texto
-      -   npm install -g snyk
-      -   snyk auth $SNYK_TOKEN #el tocken de skyk para su comunicación
-      -   snyk test --file=requerimiento.txt --package-manager=pip || true
-      -   snyk monitor --file=requerimiento.txt --package-manager=pip
+    - gitleaks detect --source . --no-git
+
+# 2. Construcción de la aplicación
+build:
+  stage: build
+  script:
+    - pip install -r requirements.txt
+    - python -m compileall .
+
+# 3. Análisis estático del código
+sonarqube:
+  stage: security
+  script:
+    - sonar-scanner
+
+# 4. Análisis de dependencias
+snyk:
+  stage: security
+  script:
+    - snyk test --severity-threshold=high
+
+# 5. Pruebas automatizadas
+tests:
+  stage: test
+  script:
+    - pytest
+
+# 6. Construcción y análisis de imagen
+container_scan:
+  stage: container_scan
+  script:
+    - docker build -t aplicacion:latest .
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL aplicacion:latest
+
+# 7. Despliegue
+deploy:
+  stage: deploy
+  script:
+    - echo "Ejecutar despliegue en ambiente autorizado"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+
