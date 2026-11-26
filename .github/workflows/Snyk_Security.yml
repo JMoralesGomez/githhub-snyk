@@ -13,7 +13,7 @@
 #      -   snyk test --file=requerimiento.txt --package-manager=pip || true
 #      -   snyk monitor --file=requerimiento.txt --package-manager=pip
 
-#==========================================================
+#============================================================
 # Pipeline DevSecOps
 # Ejemplo educativo para una aplicación Python
 
